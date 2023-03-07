@@ -31,12 +31,17 @@ read_from_push_btn:
 	MOV r0, #5000
 	MOVT r0, #4000
 	LDRB r1, [r0, #DATA]
-	AND r1, r1, 0xFF
+	AND r1, r1, 0x08
+	CMP r1, #0x08
+    BEQ PRESS
+    MOV r0, #0
+    B END
 
-	MOV r0, r1 
+PRESS:  MOV r0, #1
 
-	POP {lr}
-	MOV pc, lr
+END:    POP {lr}
+        MOV pc, lr
+
 
 illuminate_RGB_LED:
 	PUSH {lr}
