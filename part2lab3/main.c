@@ -1,9 +1,6 @@
+extern int lab4(void);
 
-
-/**
- * main.c
- */
-int main(void)
+int main()
 {
-	return 0;
+    lab4();
 }
