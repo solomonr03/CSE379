@@ -134,7 +134,7 @@ read_string:
 			; Your code for your read_string routine is placed here
 
 		MOV r1, #0
-LOOP:		PUSH {r0, r1}
+LOOP:	PUSH {r0, r1}
 		BL read_character
 		MOV r2, r0
 		CMP r2, #0x0D
