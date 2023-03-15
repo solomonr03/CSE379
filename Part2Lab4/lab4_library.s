@@ -15,12 +15,14 @@
 **************************************************************************************************
 SYSCTL:			.word	0x400FE000	; Base address for System Control
 GPIO_PORT_A:	.word	0x40004000	; Base address for GPIO Port A
+GPIO_PORT_B:	.word	0x40005000	; Base address for GPIO Port B
 GPIO_PORT_D:	.word	0x40007000	; Base address for GPIO Port D
+GPIO_PORT_F:	.word	0x40025000	; Base address for GPIO Port F
 RCGCGPIO:		.equ	0x608		; Offset for GPIO Run Mode Clock Gating Control Register
 GPIODIR:		.equ	0x400		; Offset for GPIO Direction Register
 GPIODEN:		.equ	0x51C		; Offset for GPIO Digital Enable Register
 GPIODATA:		.equ	0x3FC		; Offset for GPIO Data Register
-GPIOPUR:		.equ	0x510		; Offset for GPIO Pull-Up Resistor
+GPIOPUR:		.equ	0x510		; Offset for GPIO Pull-Up Register
 **************************************************************************************************
 
 *********************************
@@ -140,6 +142,7 @@ uart_init:
 	LDR r1, [r0]
 	ORR r1, r1, #0x11
 	STR r1, [r0]
+
 	POP {lr}
 	MOV pc, lr
 
@@ -148,22 +151,64 @@ gpio_btn_and_LED_init:
 	PUSH {lr} ; Store register lr on stack
 
 	 ; Your code is placed here
-	MOV r0, #SYSCTL
-	LDRB r1, [r0, #RCGCGPIO]
+	LDR r0, #SYSCTL
+	LDRB r1, [r0, #RCGCGPIO] ;Enable clock for Ports B, D F
 	ORR r1, #0x2A
-	STR r1, [r0]
+	STRB r1, [r0]
 
 	MOV r0, #0x5000
 	MOVT r0, #0x4002
-	LDRB r1, [r0, #DIR]
+	LDRB r1, [r0, #GPIODIR] 	;Enable SW1 for input
 	AND r1, r1, #0xEF
-	STRB r1, [r0, #DIR]
+	STRB r1, [r0, #GPIODIR]
+
+	MOV r0, #0x7000
+	MOVT r0, #0x4000		;Enable Alice push buttons for input
+	LDRB r1, [r0, #GPIODIR]
+	AND r1, r1, #0xF0
+	STRB r1, [r0, #GPIODIR]
+
+	MOV r0, #0x5000
+	MOVT r0, #0x4002		;Enable RGB LED for output
+	LDRB r1, [r0, #GPIODIR]
+	ORR r1, r1, #0x0E
+	STRB r1, [r0, #GPIODIR]
+
+	MOV r0, #0x5000
+	MOVT r0, #0x4000		;Enable Alice LEDs for output
+	LDRB r1, [r0, #GPIODIR]
+	ORR r1, r1, #0x0F
+	STRB r1, [r0, #GPIODIR]
+
+	MOV r0, #0x5000
+	MOVT r0, #0x4002
+	LDRB r1, [r0, #GPIODEN]		;Enable SW1 as digital
+	ORR r1, r1, #0x10
+	STRB r1, [r0, #GPIODEN]
 
 	MOV r0, #0x7000
 	MOVT r0, #0x4000
-	LDRB r1, [r0, #DIR]
-	AND r1, r1, #0xF8
+	LDRB r1, [r0, #GPIODEN]		;Enable Alice push buttons as digital
+	ORR r1, r1, #0x0F
+	STRB r1, [r0, #GPIODEN]
 
+	MOV r0, #0x5000
+	MOVT r0, #0x4002
+	LDRB r1, [r0, #GPIODEN]		;Enable RGB LED as digital
+	ORR r1, r1, #0x0E
+	STRB r1, [r0, #GPIODEN]
+
+	MOV r0, #0x5000
+	MOVT r0, #0x4002
+	LDRB r1, [r0, #GPIODEN]		;Enable Alice LEDS as digital
+	ORR r1, r1, #0x0F
+	STRB r1, [r0, #GPIODEN]
+
+	MOV r0, #0x5000
+	MOVT r0, #0x4002
+	LDRB r1, [r0, #GPIOPUR]			;Enable Pull-Up Resistor for SW1
+	ORR r1, r1, #0x10
+	STRB r1, [r0, #GPIOPUR]
 	POP {lr}
 	MOV pc, lr
 
@@ -189,6 +234,7 @@ check:	; Checks if data was recieved in data register
 
 		; Start to transmit data to UART data register
 		STRB r0, [r1] ; Stores r0 to UART data register
+
 	POP {lr}
 	MOV pc, lr
 
@@ -197,6 +243,7 @@ read_character:
 	PUSH {lr} ; Store register lr on stack
 
 	 ; Your code is placed here
+
 GETC:	MOV r1, #0xC000
 		MOVT r1, #0x4000
 		LDRB r1, [r1, #U0FR]
@@ -260,13 +307,56 @@ EXIT:
 read_from_push_btns:
 	PUSH {lr} ; Store register lr on stack
 	 ; Your code is placed here
-	POP {lr}
+
+	 MOV r0, #0x7000
+	 MOVT r0, #0x4000
+	 LDRB r1, [r0, #GPIODATA]
+	 AND r1, r1, #0x0F
+	 CMP r1, #0x08
+	 BEQ TWO
+	 CMP r1, #0x04
+	 BEQ THREE
+	 CMP r1, #0x02
+	 BEQ FOUR
+	 CMP r1, #0x01
+	 BEQ FIVE
+
+TWO:	MOV r0, #2
+		B END
+THREE:	MOV r0, #3
+		B END
+FOUR:	MOV r0, #4
+		B END
+FIVE:	MOV r0, #5
+		B END
+
+END:	POP {lr}
 	MOV pc, lr
 
 
 illuminate_LEDs:
 	PUSH {lr} ; Store register lr on stack
 	 ; Your code is placed here
+	;MOV r1, #0x5000
+	;MOVT r1, #0x4000 ; Assign base address of Port B to r1
+	LDR r1, GPIO_PORT_B ; Assign base address of Port B to r1
+
+	; Setting pins 0-3 of Port B to output
+	LDRB r2, [r1, #GPIODIR] ; Load Port B Direction Register from memory to r2
+    ORR r2, r2, #0xF ; Set pin 0, 1, 2, and 3 to 0b1
+    STRB r2, [r1, #GPIODIR] ; Store Port B Direction Register back to memory
+
+    ; Enabling pins 0-3 of Port B to digital
+    LDRB r2, [r1, #GPIODEN] ; Load Port B Digitial Enable Register from memory to r2
+    ORR r2, r2, #0xE ; Set pin 0, 1, 2, and 3 to 0b1
+    STRB r2, [r1, #GPIODEN] ; Store Port B Digital Enable Register back to memory
+
+    ; Turn on LED Lights (Pin 3 = LED3; Pin 2  LED2; Pin 1 = LED1; Pin 0 = LED0)
+    LDRB r2, [r1, #GPIODATA] ; Load Port B Data Register from memory to r2
+    AND r2, r2, #0xF0 ; Reset all LED lights
+    ORR r2, r2, r0 ; Turn on desited LED lights
+    STRB r2, [r1, #GPIODATA] ; Store Port B Data Register back to memory
+
 	POP {lr}
 	MOV pc, lr
 
@@ -274,8 +364,10 @@ illuminate_LEDs:
 illuminate_RGB_LED:
 	PUSH {lr} ; Store register lr on stack
 	 ; Your code is placed here
-          MOV r1, #0x5000
-          MOVT r1, #0x4002 ; Assign base address of Port F to r1
+    ;MOV r1, #0x5000
+    ;MOVT r1, #0x4002 ; Assign base address of Port F to r1
+          LDR r1, GPIO_PORT_F ; Assign base address of Port F to r1
+
           ; Setting pins 1 (red), 2 (blue), and 3 (green) of Port F to output
           LDRB r2, [r1, #DIR] ; Load Port F Direction Register from memory to r2
           ORR r2, r2, #0x0E ; Set pin 1, 2, and 3 to 1
@@ -299,7 +391,6 @@ illuminate_RGB_LED:
 read_tiva_pushbutton:
 	PUSH {lr} ; Store register lr on stack
 	 ; Your code is placed here
-
 	MOV r0, #0x5000
 	MOVT r0, #0x4002
 	LDRB r1, [r0, #PUR]
@@ -337,6 +428,117 @@ END:    POP {lr}
 read_keypad:
 	PUSH {lr} ; Store register lr on stack
 	 ; Your code is placed here
+	LDR r1, GPIO_PORT_D ; Assign base address of Port D to r1
+	LDR r2, GPIO_PORT_A ; Assign base address of Port A to r2
+
+	; 1ST ROW
+	LDRB r3, [r1, #GPIODATA] ; Load Port D Data Register from memory to r3
+	MOV r5, #0x1 ; Assign r5 to 0x1 to respresent the 1st row exclusively
+	BFI r3, r5, #0, #4 ; Insert r5 into first 4 bits of r3 to only turn on 1st row of keypad
+	STRB r3, [r1, #GPIODATA] ; Store Port D Data register back to memory
+
+	LDRB r4, [r2, #GPIODATA] ; Load Port A Data Register from memory to r4 (load columns)
+	; 1st col
+	TST r4, #0x4 ; Test if button in 1st col is pressed (pin 2)
+	BEQ S1 ; Skip to next col if not pressed
+	MOV r0, #1 ; 1 WAS PRESSED
+	POP {lr}
+	MOV pc, lr ; End subroutine
+
+S1:
+	; 2nd col
+	TST r4, #0x8 ; Test if button in 2nd col is pressed (pin 3)
+	BEQ S2 ; Skip to next col if not pressed
+	MOV r0, #2 ; 2 WAS PRESSED
+	POP {lr}
+	MOV pc, lr ; End subroutine
+
+S2:
+	; 3rd col
+	TST r4, #0x10 ; Test if button in 3rd col is pressed (pin 4)
+	BEQ S3 ; Skip to next col if not pressed
+	MOV r0, #3 ; 3 WAS PRESSED
+	POP {lr}
+	MOV pc, lr ; End subroutine
+
+S3:
+	; 2ND ROW
+	LDRB r3, [r1, #GPIODATA] ; Load Port D Data Register from memory to r3
+	MOV r5, #0x2 ; Assign r5 to 0x2 to respresent the 2nd row exclusively
+	BFI r3, r5, #0, #4 ; Insert r5 into first 4 bits of r3 to only turn on 2nd row of keypad
+	STRB r3, [r1, #GPIODATA] ; Store Port D Data register back to memory
+
+	LDRB r4, [r2, #GPIODATA] ; Load Port A Data Register from memory to r4 (load columns)
+	; 1st col
+	TST r4, #0x4 ; Test if button in 1st col is pressed (pin 2)
+	BEQ S4 ; Skip to next col if not pressed
+	MOV r0, #4 ; 4 WAS PRESSED
+	POP {lr}
+	MOV pc, lr ; End subroutine
+
+S4:
+	; 2nd col
+	TST r4, #0x8 ; Test if button in 2nd col is pressed (pin 3)
+	BEQ S5 ; Skip to next col if not pressed
+	MOV r0, #5 ; 5 WAS PRESSED
+	POP {lr}
+	MOV pc, lr ; End subroutine
+
+S5:
+	; 3rd col
+	TST r4, #0x10 ; Test if button in 3rd col is pressed (pin 4)
+	BEQ S6 ; Skip to next col if not pressed
+	MOV r0, #6 ; 6 WAS PRESSED
+	POP {lr}
+	MOV pc, lr ; End subroutine
+
+S6:
+	; 3RD ROW
+	LDRB r3, [r1, #GPIODATA] ; Load Port D Data Register from memory to r3
+	MOV r5, #0x4 ; Assign r5 to 0x4 to respresent the 3rd row exclusively
+	BFI r3, r5, #0, #4 ; Insert r5 into first 4 bits of r3 to only turn on 2nd row of keypad
+	STRB r3, [r1, #GPIODATA] ; Store Port D Data register back to memory
+
+	LDRB r4, [r2, #GPIODATA] ; Load Port A Data Register from memory to r4 (load columns)
+	; 1st col
+	TST r4, #0x4 ; Test if button in 1st col is pressed (pin 2)
+	BEQ S7 ; Skip to next col if not pressed
+	MOV r0, #7 ; 7 WAS PRESSED
+	POP {lr}
+	MOV pc, lr ; End subroutine
+
+S7:
+	; 2nd col
+	TST r4, #0x8 ; Test if button in 2nd col is pressed (pin 3)
+	BEQ S8 ; Skip to next col if not pressed
+	MOV r0, #8 ; 8 WAS PRESSED
+	POP {lr}
+	MOV pc, lr ; End subroutine
+
+S8:
+	; 3rd col
+	TST r4, #0x10 ; Test if button in 3rd col is pressed (pin 4)
+	BEQ S9 ; Skip to next col if not pressed
+	MOV r0, #9 ; 9 WAS PRESSED
+	POP {lr}
+	MOV pc, lr ; End subroutine
+
+S9:
+	; 4TH ROW
+	LDRB r3, [r1, #GPIODATA] ; Load Port D Data Register from memory to r3
+	MOV r5, #0x8 ; Assign r5 to 0x8 to respresent the 4th row exclusively
+	BFI r3, r5, #0, #4 ; Insert r5 into first 4 bits of r3 to only turn on 2nd row of keypad
+	STRB r3, [r1, #GPIODATA] ; Store Port D Data register back to memory
+
+	LDRB r4, [r2, #GPIODATA] ; Load Port A Data Register from memory to r4 (load columns)
+	; 2nd col
+	TST r4, #0x8 ; Test if button in 2nd col is pressed (pin 3)
+	BEQ S10 ; Skip to next col if not pressed
+	MOV r0, #0 ; 0 WAS PRESSED
+	POP {lr}
+	MOV pc, lr ; End subroutine
+
+S10:
 	POP {lr}
 	MOV pc, lr
 
