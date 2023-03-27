@@ -5,14 +5,18 @@
 	.global mydata
 	.global mydata_sw1
 
-prompt:					.string "Your prompt with instructions is place here", 0
-sw1_pressed_prompt:		.string "SW1 has been pressed", 0
-mydata:					.byte	0x20	; This is where you can store data.
+prompt:					.string "Press SW1 on Tiva Board or any key on the keyboard, press 'q' when finished.", 0
+sw1_counter_prompt:		.string "SW1 COUNTER: ", 0
+key_counter_prompt:		.string "KEY COUNTER: ", 0
+bar_prompt:				.string "COUNTER BAR GRAPH", 0
+sw1_bar:				.string "SW1: ", 0
+key_bar:				.string "KEY: ", 0
+mydata_key:				.byte	0x20	; This is where you can store data.
 							; The .byte assembler directive stores a byte
 							; (initialized to 0x20) at the label mydata.
 							; Halfwords & Words can be stored using the
 							; directives .half & .word
-mydata_sw1: .byte 0x00
+mydata_sw1: 			.byte 0x00
 
 	.text
 
@@ -38,17 +42,25 @@ U0FR: 		.equ 0x18
 	.global uart_init		; This is from your Lab #4 Library
 	.global lab5
 
-ptr_to_prompt:				.word prompt
-ptr_to_mydata:				.word mydata
-ptr_to_mydata_sw1:			.word mydata_sw1
-ptr_to_sw1_pressed_prompt: 	.word sw1_pressed_prompt
+ptr_to_prompt:					.word prompt
+ptr_to_mydata_key:				.word mydata_key
+ptr_to_mydata_sw1:				.word mydata_sw1
+ptr_to_sw1_counter_prompt: 		.word sw1_counter_prompt
+ptr_to_key_counter_prompt: 		.word key_counter_prompt
+ptr_bar_prompt:					.word bar_prompt
+ptr_sw1_bar:					.word sw1_bar
+ptr_key_bar:					.word key_bar
 
 lab5:	; This is your main routine which is called from your C wrapper
 	PUSH {lr}   		; Store lr to stack
 	ldr r4, ptr_to_prompt
-	ldr r5, ptr_to_mydata
-	ldr r6, ptr_to_mydata_sw1
-	ldr r7, ptr_to_sw1_pressed_prompt
+	ldr r5, ptr_to_mydata_sw1
+	ldr r6, ptr_to_mydata_key
+	ldr r7, ptr_to_sw1_bar
+	ldr r8, ptr_to_key_bar
+	ldr r9, ptr_to_sw1_counter_prompt
+	ldr r10, ptr_to_key_counter_prompt
+	ldr r11, ptr_to_bar_prompt
 
 
         bl uart_init
@@ -159,13 +171,86 @@ Switch_Handler:
 	STRB r1, [r0, #GPIOICR]
 
 	; Print that SW1 has been pressed to console
-	MOV r0, r7
-	BL output_string
+	;MOV r0, r7
+	;BL output_string
 
 	; Increment SW1 press counter
-	LDRB r2, [r6]
+	LDRB r2, [r5]
 	ADD r2, r2, #1
-	STRB r2, [r6]
+	STRB r2, [r5]
+
+	; Clear screen
+	MOV r0, #0xC
+	BL output_character
+
+	; Print directions
+	MOV r0, r4
+	BL output_string
+	MOV r0, #0xD
+	BL output_character ; Restart line position
+	MOV r0, #0xA
+	BL output_character ; New line
+	BL output_character ; New line
+
+	; Print key counter
+	MOV r0, r10
+	BL output_string
+	LDRB r3, [r6]
+	PUSH {r3}
+	ADD r3, r3, #0x30
+	MOV r0, r3
+	BL output_character
+	POP {r3}
+	MOV r0, #0xD
+	BL output_character ; Restart line position
+	MOV r0, #0xA
+	BL output_character ; New line
+
+	; Print SW1 counter
+	MOV r0, r9
+	BL output_string
+	PUSH {r2}
+	ADD r2, r2, #0x30
+	MOV r0, r2
+	BL output_character
+	POP {r2}
+	MOV r0, #0xD
+	BL output_character ; Restart line position
+	MOV r0, #0xA
+	BL output_character ; New line
+	BL output_character ; New line
+
+	; Print bar graph title
+	MOV r0, r11
+	BL output_string
+	MOV r0, #0xA
+	BL output_character ; New line
+
+	; Print key bar graph section
+	MOV r0, r8
+	BL output_string
+	; Print 'X' however many times keys were pressed
+	PUSH {r3}
+LOOP_1:
+	MOV r0, #0x58
+	output_character
+	SUB r3, r3, #1
+	CMP r3, #0
+	BNE LOOP_1
+	POP {r3}
+
+	; Print SW1 bar graph section
+	MOV r0, r7
+	BL output_string
+	; Print 'X' however many times SW1 was pressed
+	PUSH {r2}
+LOOP_2:
+	MOV r0, #0x58
+	output_character
+	SUB r2, r2, #1
+	CMP r2, #0
+	BNE LOOP_2
+	POP {r2}
 
 	BX lr       	; Return
 
