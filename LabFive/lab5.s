@@ -11,7 +11,7 @@ key_counter_prompt:		.string "KEY COUNTER: ", 0
 bar_prompt:				.string "COUNTER BAR GRAPH", 0
 sw1_bar:				.string "SW1: ", 0
 key_bar:				.string "KEY: ", 0
-mydata_key:				.byte	0x20	; This is where you can store data.
+mydata_key:				.byte	0x00	; This is where you can store data.
 							; The .byte assembler directive stores a byte
 							; (initialized to 0x20) at the label mydata.
 							; Halfwords & Words can be stored using the
@@ -339,7 +339,7 @@ Switch_Handler:
 	; Your code for your UART handler goes here.
 	; Remember to preserver registers r4-r11 by pushing then popping
 	; them to & from the stack at the beginning & end of the handler
-	PUSH {r4-r11}
+	PUSH {r4-r11,LR}
 
 	; Move base address of Port F to r0
 	MOV r0, #0x5000
@@ -403,6 +403,8 @@ Switch_Handler:
 	; Print bar graph title
 	MOV r0, r11
 	BL output_string
+	MOV r0, #0xD
+	BL output_character ; Restart line position
 	MOV r0, #0xA
 	BL output_character ; New line
 
@@ -412,12 +414,19 @@ Switch_Handler:
 	; Print 'X' however many times keys were pressed
 	PUSH {r3}
 LOOP_1:
+	CMP r3, #0
+	BEQ END_1
 	MOV r0, #0x58
 	BL output_character
 	SUB r3, r3, #1
-	CMP r3, #0
-	BNE LOOP_1
+	B LOOP_1
+END_1:
 	POP {r3}
+
+	MOV r0, #0xD
+	BL output_character ; Restart line position
+	MOV r0, #0xA
+	BL output_character ; New line
 
 	; Print SW1 bar graph section
 	MOV r0, r7
@@ -425,14 +434,17 @@ LOOP_1:
 	; Print 'X' however many times SW1 was pressed
 	PUSH {r2}
 LOOP_2:
+	CMP r2, #0
+	BEQ END_2
 	MOV r0, #0x58
 	BL output_character
 	SUB r2, r2, #1
-	CMP r2, #0
-	BNE LOOP_2
+	B LOOP_2
+END_2:
 	POP {r2}
 
-	POP {r4-r11}
+
+	POP {r4-r11,LR}
 
 	BX lr       	; Return
 
@@ -460,7 +472,7 @@ simple_read_character:
 
 
 output_character:
-	PUSH {lr} ; Store register lr on stack
+	PUSH {lr, r1, r2, r3} ; Store register lr on stack
 
 	 ; Your code is placed here
 
@@ -480,13 +492,14 @@ check:	; Checks if data was recieved in data register
 		; Start to transmit data to UART data register
 		STRB r0, [r1] ; Stores r0 to UART data register
 
-	POP {lr}
+	POP {lr, r1, r2, r3}
 
 	MOV PC,LR      	; Return
 
 
 read_string:
 	PUSH {lr} ; Store register lr on stack
+	PUSH {r1, r2, r3}
 	 ; Your code is placed here
 		MOV r1, #0
 LOOP:	PUSH {r0, r1}
@@ -506,6 +519,7 @@ FINN:	MOV r3, #0
 		POP {r0, r1}
 		STRB r3, [r0, r1]
 
+	POP {r1, r2, r3}
 	POP {lr}
 
 	MOV PC,LR      	; Return
@@ -513,6 +527,7 @@ FINN:	MOV r3, #0
 
 output_string:
 	PUSH {lr} ; Store register lr on stack
+	PUSH {r0, r2}
 	 ; Your code is placed here
 			; Your code for your output_string routine is placed here
 LOOP__2: ; Parses string in memory and sends each character to UART individually to be outputted
@@ -526,6 +541,7 @@ LOOP__2: ; Parses string in memory and sends each character to UART individually
 	ADD r0, r0, #0x01 ; Add 1 to r0 as parser register
 	B LOOP__2 ; Restart loop__2
 EXIT:
+	POP {r0, r2}
 	POP {lr}
 
 	MOV PC,LR      	; Return
