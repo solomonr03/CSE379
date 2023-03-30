@@ -266,8 +266,8 @@ UART0_Handler:
 	MOV r0, r10		; Move the uart prompt into r0
 	BL output_string	; Display uart prompt
 
-	LDRB r0, [r6]		; Move the address of the uart num
-	LDR r1, ptr_to_key_count_str ; Load string placeholder location
+	MOV r0, r6			; Move the address of the uart num
+	LDR r1, ptr_to_key_count_str 	; Load string placeholder location
 	BL int2string
 	MOV r0, r1
 	BL output_string	; Output the uart num
@@ -280,10 +280,12 @@ UART0_Handler:
 	MOV r0, r9		; Move the gpio prompt into r0
 	BL output_string	; Display gpio prompt
 
-	LDRB r1, [r5]		; Load the value of the gpio num
-	ADD r1, r1, #0x30	; Add hex 30 to the value store to convert it into a string
-	BL output_character	; Output the gpio num
-
+	MOV r0, r5			; Load the value of the gpio num
+	LDR r1, ptr_to_sw1_count_str	; Add hex 30 to the value store to convert it into a string
+	BL int2string		
+	MOV r0, r1
+	BL output_string		; Output the gpio num
+	
 	MOV r0, #0x0A
 	BL output_character ; New line
 	MOV r0, #0x0D
