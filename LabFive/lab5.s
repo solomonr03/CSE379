@@ -258,27 +258,26 @@ UART0_Handler:
 
 	MOV r0, #0x0A
 	BL output_character ; New line
-	MOV r0, #0x0D
-	BL output_character ; Reset line position
-
-	MOV r0, #0x0A
 	BL output_character ; New line
 	MOV r0, #0x0D
 	BL output_character ; Reset line position
 
-	MOV r0, r10			; Move the uart prompt into r0
+
+	MOV r0, r10		; Move the uart prompt into r0
 	BL output_string	; Display uart prompt
 
-	LDRB r1, [r6]		; Move the address of the uart num
-	ADD r1, r1, #0x30	; Add hex 30 to the value store to convert it into a string
-	BL output_character	; Output the uart num
+	LDRB r0, [r6]		; Move the address of the uart num
+	LDR r1, ptr_to_key_count_str ; Load string placeholder location
+	BL int2string
+	MOV r0, r1
+	BL output_string	; Output the uart num
 
 	MOV r0, #0x0A
 	BL output_character ; New line
 	MOV r0, #0x0D
 	BL output_character ; Reset line position
 
-	MOV r0, r9			; Move the gpio prompt into r0
+	MOV r0, r9		; Move the gpio prompt into r0
 	BL output_string	; Display gpio prompt
 
 	LDRB r1, [r5]		; Load the value of the gpio num
@@ -320,6 +319,8 @@ UARTBAR:
 	BL output_string 		; Display the gpio label
 
 	LDRB r1, [r5]		; Initialize counter
+	CMP r1, #0
+	BEQ NOBAR
 
 GPIOBAR:
 	MOV r0, #0x58		; Move the ASCII value for 'X' into r0
@@ -327,7 +328,7 @@ GPIOBAR:
 	SUB r1, r1, #1		; Decrement counter
 	CMP r1, #0			; Check if counter is at zero if not break do it again
 	BNE GPIOBAR
-
+NOBAR:
 	POP {r4-r11}
 
 
