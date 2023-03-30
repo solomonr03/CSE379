@@ -1,8 +1,14 @@
 	.data
 
 	.global prompt
-	.global sw1_pressed_prompt
-	.global mydata
+	.global sw1_counter_prompt
+	.global key_counter_prompt
+	.global bar_prompt
+	.global sw1_bar
+	.global key_bar
+	.global sw1_count_str
+	.global key_count_str
+	.global mydata_key
 	.global mydata_sw1
 
 prompt:					.string "Press SW1 on Tiva Board or any key on the keyboard, press 'q' when finished.", 0
@@ -45,6 +51,7 @@ UARTICR:	.equ	0x044
 	.global read_string		; This is from your Lab #4 Library
 	.global output_string		; This is from your Lab #4 Library
 	.global uart_init		; This is from your Lab #4 Library
+	.global int2string		; This is from our Lab #3 Library
 	.global lab5
 
 ptr_to_prompt:					.word prompt
@@ -611,54 +618,6 @@ MOD:		SDIV r3, r0, r2
 		CMP r0, #0			;If integer is not 0 mod it again and convert it to string
 		BNE MOD
 
-
-	POP {lr}
-	mov pc, lr
-
-
-string2int:
-	PUSH {lr}   ; Store register lr on stack
-
-			; Your code for your string2int routine is placed here
-	MOV r1, #0 ; Initalize parser
-	MOV r2, #-1 ; Initialize postion counter *starting at -1
-	MOV r5, #0 ; Intialize total register
-LOOP_1:   ;Finds how many digits are in the string
-	LDRB r3, [r0, r1] ; Loads the [r1]th character from  memory into r3
-	CMP r3, #0
-	BEQ EXIT_L1 ; If r3 is a null character, stop loop. Amount of digits found
-	ADD r1, r1, #1 ; Increment parser
-	ADD r2, r2, #1 ; Increment position counter
-	B LOOP_1 ; Restart loop_1
-EXIT_L1:
-	MOV r1, #0 ; Reset parser
-LOOP_2: ; Builds the int by multiplying each digit by 10 to the power of its postion and adding it to total output number
-	LDRB r3, [r0, r1] ; Loads the [r1]th character from  memory into r3
-	CMP r3, #0
-	BEQ EXIT_L2 ; If r3 is a null character, stop loop_2. Int found
-	SUB r3, r3, #0x30 ; Subtract ASCII value by 0x30 to convert into int
-	MOV r4, #1; ; Save 1 to r4 if in the 0th position
-	CMP r2, #0
-	BEQ SKIP ; Skip finding power of 10 if in the 0th postion
-	MOV r4, #10 ; Save 10 to r4 to find power of 10
-	PUSH {r2, r1} ; Preserve postion of current digit and parser register while finding power of 10
-LOOP_2_1: ; Finds 10 to the power of the position my mulipying 10 by itself multiple times
-	CMP r2, #1
-	BEQ EXIT_L2_1 ; If power of 10 is found, exit loop
-	MOV r1, #10 ;
-	MUL r4, r4, r1 ; Muliply 10 by itself
-	SUB r2, r2, #1 ; Decrement r2 as a counter of how many times we need to multiply
-	B LOOP_2_1 ; Restart loop2_1
-EXIT_L2_1:
-	POP {r2, r1} ; Get back the postion we are in and parser register
-SKIP:
-	MUL r3, r3, r4 ; Mulitply digit of focus by some power of 10 to get it in the desired digit
-	ADD r5, r5, r3 ; Add digit in the correct position to total output int
-	ADD r1, r1, #1 ; Increment parser
-	SUB r2, r2, #1 ; Decrement position count
-	B LOOP_2 ; Restart loop_2
-EXIT_L2:
-	MOV r0, r5 ; Move int to output register
 
 	POP {lr}
 	mov pc, lr
