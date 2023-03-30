@@ -1,8 +1,14 @@
 	.data
 
 	.global prompt
-	.global sw1_pressed_prompt
-	.global mydata
+	.global sw1_counter_prompt
+	.global key_counter_prompt
+	.global bar_prompt
+	.global sw1_bar
+	.global key_bar
+	.global sw1_count_str
+	.global key_count_str
+	.global mydata_key
 	.global mydata_sw1
 
 prompt:					.string "Press SW1 on Tiva Board or any key on the keyboard, press 'q' when finished.", 0
@@ -11,6 +17,8 @@ key_counter_prompt:		.string "KEY COUNTER: ", 0
 bar_prompt:				.string "COUNTER BAR GRAPH", 0
 sw1_bar:				.string "SW1: ", 0
 key_bar:				.string "KEY: ", 0
+sw1_count_str:			.string "Placeholder for string version of sw1 count". 0
+key_count_str:			.string "Placeholder for string version of key count". 0
 mydata_key:				.byte	0x00	; This is where you can store data.
 							; The .byte assembler directive stores a byte
 							; (initialized to 0x20) at the label mydata.
@@ -43,6 +51,7 @@ UARTICR:	.equ	0x044
 	.global read_string		; This is from your Lab #4 Library
 	.global output_string		; This is from your Lab #4 Library
 	.global uart_init		; This is from your Lab #4 Library
+	.global int2string		; This is from our Lab #3 Library
 	.global lab5
 
 ptr_to_prompt:					.word prompt
@@ -53,6 +62,8 @@ ptr_to_key_counter_prompt: 		.word key_counter_prompt
 ptr_to_bar_prompt:				.word bar_prompt
 ptr_to_sw1_bar:					.word sw1_bar
 ptr_to_key_bar:					.word key_bar
+ptr_to_sw1_count_str:			.word sw1_count_str
+ptr_to_key_count_str:			.word key_count_str
 
 lab5:	; This is your main routine which is called from your C wrapper
 	PUSH {lr}   		; Store lr to stack
@@ -237,7 +248,7 @@ UART0_Handler:
 	; Your code for your UART handler goes here.
 	; Remember to preserver registers r4-r11 by pushing then popping
 	; them to & from the stack at the beginning & end of the handler
-	PUSH {r4-r11}
+	PUSH {r4-r11,LR}
 
 	MOV r0, #0xC000
 	MOVT r0, #0x4000		; Set bit 4 in UART Interrupt Clear Register
@@ -266,8 +277,8 @@ UART0_Handler:
 	MOV r0, r10		; Move the uart prompt into r0
 	BL output_string	; Display uart prompt
 
-	MOV r0, r6			; Move the address of the uart num
-	LDR r1, ptr_to_key_count_str 	; Load string placeholder location
+	LDRB r0, [r6]		; Move the address of the uart num
+	LDR r1, ptr_to_key_count_str ; Load string placeholder location
 	BL int2string
 	MOV r0, r1
 	BL output_string	; Output the uart num
@@ -280,13 +291,14 @@ UART0_Handler:
 	MOV r0, r9		; Move the gpio prompt into r0
 	BL output_string	; Display gpio prompt
 
-	MOV r0, r5			; Load the value of the gpio num
-	LDR r1, ptr_to_sw1_count_str	; Add hex 30 to the value store to convert it into a string
-	BL int2string		
+	LDRB r0, [r5]		; Move the address of the gpio num
+	LDR r1, ptr_to_sw1_count_str ; Load string placeholder location
+	BL int2string
 	MOV r0, r1
-	BL output_string		; Output the gpio num
-	
+	BL output_string	; Output the gpio num
+
 	MOV r0, #0x0A
+	BL output_character ; New line
 	BL output_character ; New line
 	MOV r0, #0x0D
 	BL output_character ; Reset line position
@@ -331,7 +343,7 @@ GPIOBAR:
 	CMP r1, #0			; Check if counter is at zero if not break do it again
 	BNE GPIOBAR
 NOBAR:
-	POP {r4-r11}
+	POP {r4-r11,LR}
 
 
 	BX lr       	; Return
@@ -376,27 +388,54 @@ Switch_Handler:
 	BL output_character ; New line
 
 	; Print key counter
+	;MOV r0, r10
+	;BL output_string ; Print key counter text
+	;LDRB r3, [r6]
+	;PUSH {r3}
+	;ADD r3, r3, #0x30
+	;MOV r0, r3
+	;BL output_character
+	;POP {r3}
+	;MOV r0, #0xD
+	;BL output_character ; Restart line position
+	;MOV r0, #0xA
+	;BL output_character ; New line
+
+	; Print key counter (multi-digit)
 	MOV r0, r10
-	BL output_string
-	LDRB r3, [r6]
-	PUSH {r3}
-	ADD r3, r3, #0x30
-	MOV r0, r3
-	BL output_character
-	POP {r3}
+	BL output_string ; Print key counter text
+	LDRB r0, [r6] ; Load number into r0
+	LDR r1, ptr_to_key_count_str ; Load string placeholder location in r1
+	BL int2string ; Call int2string with r6 as number and 'ptr_to_key_count_str' as string location
+	MOV r0, r1 ; Move string version of counter to r0
+	BL output_string ; Print counter as string
 	MOV r0, #0xD
 	BL output_character ; Restart line position
 	MOV r0, #0xA
 	BL output_character ; New line
 
 	; Print SW1 counter
+	;MOV r0, r9
+	;BL output_string
+	;PUSH {r2}
+	;ADD r2, r2, #0x30
+	;MOV r0, r2
+	;BL output_character
+	;POP {r2}
+	;MOV r0, #0xD
+	;BL output_character ; Restart line position
+	;MOV r0, #0xA
+	;BL output_character ; New line
+	;BL output_character ; New line
+
+	; Print SW1 counter (multi-digit)
 	MOV r0, r9
-	BL output_string
-	PUSH {r2}
-	ADD r2, r2, #0x30
-	MOV r0, r2
-	BL output_character
-	POP {r2}
+	BL output_string ; Print sw1 counter text
+	MOV r0, r2 ; Load number into r0
+	LDR r1, ptr_to_sw1_count_str ; Load string placeholder location in r1
+	BL int2string ; Call int2string with r2 as number and 'ptr_to_sw1_count_str' as string location
+	MOV r0, r1 ; Move string version of counter to r0
+	BL output_string ; Print counter as string
 	MOV r0, #0xD
 	BL output_character ; Restart line position
 	MOV r0, #0xA
@@ -548,6 +587,40 @@ EXIT:
 	POP {lr}
 
 	MOV PC,LR      	; Return
+
+
+int2string:
+	PUSH {lr}   ; Store register lr on stack
+
+			; Your code for your int2string routine is placed here
+		MOV r2, #10
+		MOV r4, #0
+		MOV r5, #0
+
+		PUSH {r0}
+COUNT:		ADD r4, r4, #1
+		SDIV r0, r0, r2
+		CMP r0, #0
+		BNE COUNT
+		POP {r0}
+		STRB r5, [r1, r4]
+		SUB r4, r4, #1
+
+MOD:		SDIV r3, r0, r2
+		MUL r3, r3, r2		;Mod the intial integer
+		SUB r3, r0, r3
+		SDIV r0, r0, r2
+
+
+		ADD r3, r3, #0x30	;Add hex 30 to convert integer to string
+		STRB r3, [r1, r4]		;Store string at r1
+		SUB r4, r4, #1
+		CMP r0, #0			;If integer is not 0 mod it again and convert it to string
+		BNE MOD
+
+
+	POP {lr}
+	mov pc, lr
 
 
 	.end
