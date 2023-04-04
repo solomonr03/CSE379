@@ -395,7 +395,7 @@ illuminate_RGB_LED:
 	MOV pc, lr
 
 
-read_tiva_pushbutton:
+read_tiva_push_button:
 	PUSH {lr} ; Store register lr on stack
 	 ; Your code is placed here
 	MOV r0, #0x5000
@@ -421,12 +421,12 @@ read_tiva_pushbutton:
 	MOVT r0, #0x4002
 	LDRB r1, [r0, #GPIODATA]
 	AND r1, r1, #0x10
-	CMP r1, #0x10
-    BEQ NOTP
+	CMP r1, #0x00
+    BEQ ISP
     MOV r0, #0
     B END2
 
-NOTP:  MOV r0, #1
+ISP:  MOV r0, #1
 
 END2:    POP {lr}
 	MOV pc, lr
