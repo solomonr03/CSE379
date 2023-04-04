@@ -9,27 +9,31 @@ CMD_SRCS += \
 ../tm4c123gh6pm.cmd 
 
 S_SRCS += \
-../lab5.s 
+../lab_5.s \
+../lab_5_library.s 
 
 C_SRCS += \
 ../lab5wrapper.c \
 ../tm4c123gh6pm_startup_ccs.c 
 
 S_DEPS += \
-./lab5.d 
+./lab_5.d \
+./lab_5_library.d 
 
 C_DEPS += \
 ./lab5wrapper.d \
 ./tm4c123gh6pm_startup_ccs.d 
 
 OBJS += \
-./lab5.obj \
 ./lab5wrapper.obj \
+./lab_5.obj \
+./lab_5_library.obj \
 ./tm4c123gh6pm_startup_ccs.obj 
 
 OBJS__QUOTED += \
-"lab5.obj" \
 "lab5wrapper.obj" \
+"lab_5.obj" \
+"lab_5_library.obj" \
 "tm4c123gh6pm_startup_ccs.obj" 
 
 C_DEPS__QUOTED += \
@@ -37,13 +41,15 @@ C_DEPS__QUOTED += \
 "tm4c123gh6pm_startup_ccs.d" 
 
 S_DEPS__QUOTED += \
-"lab5.d" 
-
-S_SRCS__QUOTED += \
-"../lab5.s" 
+"lab_5.d" \
+"lab_5_library.d" 
 
 C_SRCS__QUOTED += \
 "../lab5wrapper.c" \
 "../tm4c123gh6pm_startup_ccs.c" 
+
+S_SRCS__QUOTED += \
+"../lab_5.s" \
+"../lab_5_library.s" 
 
 

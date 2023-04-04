@@ -10,8 +10,9 @@ GEN_OPTS__FLAG :=
 GEN_CMDS__FLAG := 
 
 ORDERED_OBJS += \
-"./lab5.obj" \
 "./lab5wrapper.obj" \
+"./lab_5.obj" \
+"./lab_5_library.obj" \
 "./tm4c123gh6pm_startup_ccs.obj" \
 "../tm4c123gh6pm.cmd" \
 $(GEN_CMDS__FLAG) \
@@ -156,9 +157,9 @@ LabFive.hex: $(EXE_OUTPUTS)
 # Other Targets
 clean:
 	-$(RM) $(BIN_OUTPUTS__QUOTED)$(EXE_OUTPUTS__QUOTED)
-	-$(RM) "lab5.obj" "lab5wrapper.obj" "tm4c123gh6pm_startup_ccs.obj" 
+	-$(RM) "lab5wrapper.obj" "lab_5.obj" "lab_5_library.obj" "tm4c123gh6pm_startup_ccs.obj" 
 	-$(RM) "lab5wrapper.d" "tm4c123gh6pm_startup_ccs.d" 
-	-$(RM) "lab5.d" 
+	-$(RM) "lab_5.d" "lab_5_library.d" 
 	-@echo 'Finished clean'
 	-@echo ' '
 
