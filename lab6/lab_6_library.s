@@ -282,7 +282,7 @@ UART0_Handler:
 	MOVT r0, #0x4000		; Set bit 4 in UART Interrupt Clear Register
 	LDRB r1, [r0, #UARTICR]
 	ORR r1, r1, #0x10
-
+	STRB r1, [r0, #UARTICR]
 
 
 	BL simple_read_character		; Read character to tell which key was pressed
