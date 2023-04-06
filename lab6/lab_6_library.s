@@ -14,7 +14,7 @@
 prompt:				.string 	"Press w, a, s, d to move the ball, or press sw1 to increase speed", 0
 hit_prompt:			.string 	"Moves the ball made: ", 0
 counter_str:		.string 	"Placeholder for string version of counter", 0
-speed:				.byte 		0x00
+speed:				.byte 		0x01
 counter:			.byte 		0x00
 row:				.byte		0x00
 col:				.byte 		0x00
@@ -327,12 +327,24 @@ Switch_Handler:
 	; them to & from the stack at the beginning & end of the handler
 	PUSH {r4-r11,LR}
 
+	; Clear SW1 Interrupt
+	LDRB r1, [r0, #GPIOICR]
+	ORR r1, r1, #0x10
+	STRB r1, [r0, #GPIOICR]
+
 	LDR r1, ptr_to_speed		; Load address of speed num in r1
 	LDRB r0, [r1]				; Load the number store at the address into r0
 	ADD r0, r0, #1				; Increment the speed
 	STRB r0, [r1]				; Store the new number at contents of address
 
-	POP {r4-r11}
+	; Increase decrease timer interval period by a second
+	LDR r1, [r0, #GPTMTAILR]
+	MOV r2, #0x2400
+	MOVT r2, #0x00F4 ; Save 16MHz which represents a cylce per sec to r2
+	SDIV r1, r2, r0 ; Divide r2 by speed
+	STR r1, [r0, #GPTMTAILR]
+
+	POP {r4-r11, LR}
 
 	BX lr       	; Return
 
