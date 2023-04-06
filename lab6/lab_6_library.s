@@ -1,16 +1,29 @@
 	.data
 
-	.global direction
-	.global move_up
-	.global move_down
-	.global move_right
-	.global move_left
+	.global board
+	.global prompt
+	.global row
+	.global col
+	.global current_dir
+	.global speed
+	.global counter
+	.global counter_str
+	.global hit_prompt
+	.global start_pos
 
-direction:				.byte 0x00   ;0=u, 1=d, 2=r, 3=l
-move_up:				.string 27, "[1A*", 0
-move_down:				.string 27, "[1B*", 0
-move_right:				.string 27, "[1C*", 0
-move_left:				.string 27, "[1D*", 0
+prompt:				.string 	"Press w, a, s, d to move the ball, or press sw1 to increase speed", 0
+hit_prompt:			.string 	"Moves the ball made: ", 0
+counter_str:		.string 	"Placeholder for string version of counter", 0
+speed:				.byte 		0x00
+counter:			.byte 		0x00
+row:				.byte		0x00
+col:				.byte 		0x00
+current_dir:		.byte 		0x02   ;0=u, 1=d, 2=r, 3=l
+move_up:			.string		27, "[1A*", 0
+move_down:			.string 	27, "[1B*", 0
+move_right:			.string 	27, "[1C*", 0
+move_left:			.string 	27, "[1D*", 0
+start_pos:			.string		27, "[13;11H*",0
 
 	.text
 
@@ -35,6 +48,7 @@ GPTMICR:	.equ 0x024
 
 	.global uart_interrupt_init
 	.global gpio_interrupt_init
+	.global timer_interrupt_init
 	.global UART0_Handler
 	.global Switch_Handler
 	.global Timer_Handler		; This is needed for Lab #6
@@ -45,11 +59,16 @@ GPTMICR:	.equ 0x024
 	.global uart_init		; This is from your Lab #4 Library
 	.global int2string		; This is from our Lab #3 Library
 
-ptr_to_direction:			.word direction
+ptr_to_current_dir:			.word current_dir
 ptr_to_move_up:				.word move_up
 ptr_to_move_down:			.word move_down
 ptr_to_move_right:			.word move_right
 ptr_to_move_left:			.word move_left
+ptr_to_speed:				.word speed
+ptr_to_board:				.word board
+ptr_to_counter:				.word counter
+ptr_to_row:					.word row
+ptr_to_col:					.word col
 
 uart_init:
 	PUSH {lr} ; Store register lr on stack
@@ -239,15 +258,17 @@ timer_interrupt_init:
 	STRB r1, [r0, #GPTMTAMR]
 
 	; Setup timer's interval period
-	LDRB r1, [r0, #GPTMTAILR]
+	LDR r1, [r0, #GPTMTAILR]
 	MOV r1, #0x2400
 	MOVT r1, #0x00F4
-	STRB r1, [r0, #GPTMTAILR]
+	STR r1, [r0, #GPTMTAILR]
 
 	; Enable Timer After Setup
 	LDRB r1, [r0, #GPTMCTL]
 	ORR r1, r1, #0x01
 	STRB r1, [r0, #GPTMCTL]
+
+	MOV pc, lr
 
 
 UART0_Handler:
@@ -264,94 +285,37 @@ UART0_Handler:
 	STRB r1, [r0, #UARTICR]
 
 
-	LDRB r1, [r6] 		; Load value at ptr into r1
-	ADD r1, r1, #1		; Increment the uart counter
-	STRB r1, [r6]		; Store the new value at ptr
+	BL simple_read_character		; Read character to tell which key was pressed
+	CMP r0, #0x77					; Compare to hex value for 'w'
+	BEQ UP
+	CMP r0, #0x73					; Compare to hex value for 's'
+	BEQ DOWN
+	CMP r0, #0x61					; Compare to hex value for 'a'
+	BEQ LEFT
+	CMP r0, #0x64					; Compare to hex value for 'd'
+	BEQ RIGHT
+	B DONE
 
-	MOV r0, #0x0C
-	BL output_character ; Clear the screen
+UP:
+	MOV r0, #0
+	STRB r0, [r7]					; Store the number for up in current_dir
+	B DONE
+DOWN:
+	MOV r0, #1						; Store the number for down in current_dir
+	STRB r0, [r7]
+	B DONE
+LEFT:								; Store the number for left in current_dir
+	MOV r0, #2
+	STRB r0, [r7]
+	B DONE
+RIGHT:								; Store the number for right in current_dir
+	MOV r0, #3
+	STRB r0, [r7]
+	B DONE
 
-	MOV r0, r4			; Move the prompt into r0
-	BL output_string 	; Display the prompt
+DONE:
 
-	MOV r0, #0x0A
-	BL output_character ; New line
-	BL output_character ; New line
-	MOV r0, #0x0D
-	BL output_character ; Reset line position
-
-
-	MOV r0, r10		; Move the uart prompt into r0
-	BL output_string	; Display uart prompt
-
-	LDRB r0, [r6]		; Move the address of the uart num
-	LDR r1, ptr_to_key_count_str ; Load string placeholder location
-	BL int2string
-	MOV r0, r1
-	BL output_string	; Output the uart num
-
-	MOV r0, #0x0A
-	BL output_character ; New line
-	MOV r0, #0x0D
-	BL output_character ; Reset line position
-
-	MOV r0, r9		; Move the gpio prompt into r0
-	BL output_string	; Display gpio prompt
-
-	LDRB r0, [r5]		; Move the address of the gpio num
-	LDR r1, ptr_to_sw1_count_str ; Load string placeholder location
-	BL int2string
-	MOV r0, r1
-	BL output_string	; Output the gpio num
-
-	MOV r0, #0x0A
-	BL output_character ; New line
-	BL output_character ; New line
-	MOV r0, #0x0D
-	BL output_character ; Reset line position
-
-	MOV r0, r11			; Move the address of the bar title prompt into r0
-	BL output_string		; Output bar title
-
-	MOV r0, #0x0A
-	BL output_character ; New line
-	MOV r0, #0x0D
-	BL output_character ; Reset line position
-
-	MOV r0, r8			; Move the uart label address into r0
-	BL output_string 		; Display the uart label
-
-	LDRB r1, [r6]		; Initialize counter
-
-UARTBAR:
-	MOV r0, #0x58		; Move the ASCII value for 'X' into r0
-	BL output_character		; Output bar for bar graph
-	SUB r1, r1, #1		; Decrement counter
-	CMP r1, #0			; Check if counter is at zero if not break do it again
-	BNE UARTBAR
-
-
-	MOV r0, #0x0A
-	BL output_character ; New line
-	MOV r0, #0x0D
-	BL output_character ; Reset line position
-
-	MOV r0, r7			; Move the gpio label address into r0
-	BL output_string 		; Display the gpio label
-
-	LDRB r1, [r5]		; Initialize counter
-	CMP r1, #0
-	BEQ NOBAR
-
-GPIOBAR:
-	MOV r0, #0x58		; Move the ASCII value for 'X' into r0
-	BL output_character		; Output bar for bar graph
-	SUB r1, r1, #1		; Decrement counter
-	CMP r1, #0			; Check if counter is at zero if not break do it again
-	BNE GPIOBAR
-NOBAR:
-	POP {r4-r11,LR}
-
+	POP {r4-r11}
 
 	BX lr       	; Return
 
@@ -363,138 +327,12 @@ Switch_Handler:
 	; them to & from the stack at the beginning & end of the handler
 	PUSH {r4-r11,LR}
 
-	; Move base address of Port F to r0
-	MOV r0, #0x5000
-	MOVT r0, #0x4002
+	LDR r1, ptr_to_speed		; Load address of speed num in r1
+	LDRB r0, [r1]				; Load the number store at the address into r0
+	ADD r0, r0, #1				; Increment the speed
+	STRB r0, [r1]				; Store the new number at contents of address
 
-	; Clear SW1 Interrupt
-	LDRB r1, [r0, #GPIOICR]
-	ORR r1, r1, #0x10
-	STRB r1, [r0, #GPIOICR]
-
-	; Print that SW1 has been pressed to console
-	;MOV r0, r7
-	;BL output_string
-
-	; Increment SW1 press counter
-	LDRB r2, [r5]
-	ADD r2, r2, #1
-	STRB r2, [r5]
-
-	; Clear screen
-	MOV r0, #0xC
-	BL output_character
-
-	; Print directions
-	MOV r0, r4
-	BL output_string
-	MOV r0, #0xD
-	BL output_character ; Restart line position
-	MOV r0, #0xA
-	BL output_character ; New line
-	BL output_character ; New line
-
-	; Print key counter
-	;MOV r0, r10
-	;BL output_string ; Print key counter text
-	;LDRB r3, [r6]
-	;PUSH {r3}
-	;ADD r3, r3, #0x30
-	;MOV r0, r3
-	;BL output_character
-	;POP {r3}
-	;MOV r0, #0xD
-	;BL output_character ; Restart line position
-	;MOV r0, #0xA
-	;BL output_character ; New line
-
-	; Print key counter (multi-digit)
-	MOV r0, r10
-	BL output_string ; Print key counter text
-	LDRB r0, [r6] ; Load number into r0
-	LDR r1, ptr_to_key_count_str ; Load string placeholder location in r1
-	BL int2string ; Call int2string with r6 as number and 'ptr_to_key_count_str' as string location
-	MOV r0, r1 ; Move string version of counter to r0
-	BL output_string ; Print counter as string
-	MOV r0, #0xD
-	BL output_character ; Restart line position
-	MOV r0, #0xA
-	BL output_character ; New line
-
-	; Print SW1 counter
-	;MOV r0, r9
-	;BL output_string
-	;PUSH {r2}
-	;ADD r2, r2, #0x30
-	;MOV r0, r2
-	;BL output_character
-	;POP {r2}
-	;MOV r0, #0xD
-	;BL output_character ; Restart line position
-	;MOV r0, #0xA
-	;BL output_character ; New line
-	;BL output_character ; New line
-
-	; Print SW1 counter (multi-digit)
-	MOV r0, r9
-	BL output_string ; Print sw1 counter text
-	LDRB r0, [r5] ; Load number into r0
-	LDR r1, ptr_to_sw1_count_str ; Load string placeholder location in r1
-	BL int2string ; Call int2string with r2 as number and 'ptr_to_sw1_count_str' as string location
-	MOV r0, r1 ; Move string version of counter to r0
-	BL output_string ; Print counter as string
-	MOV r0, #0xD
-	BL output_character ; Restart line position
-	MOV r0, #0xA
-	BL output_character ; New line
-	BL output_character ; New line
-
-	; Print bar graph title
-	MOV r0, r11
-	BL output_string
-	MOV r0, #0xD
-	BL output_character ; Restart line position
-	MOV r0, #0xA
-	BL output_character ; New line
-
-	; Print key bar graph section
-	MOV r0, r8
-	BL output_string
-	; Print 'X' however many times keys were pressed
-	PUSH {r3}
-	LDRB r3, [r6]
-LOOP_1:
-	CMP r3, #0
-	BEQ END_1
-	MOV r0, #0x58
-	BL output_character
-	SUB r3, r3, #1
-	B LOOP_1
-END_1:
-	POP {r3}
-
-	MOV r0, #0xD
-	BL output_character ; Restart line position
-	MOV r0, #0xA
-	BL output_character ; New line
-
-	; Print SW1 bar graph section
-	MOV r0, r7
-	BL output_string
-	; Print 'X' however many times SW1 was pressed
-	PUSH {r2}
-LOOP_2:
-	CMP r2, #0
-	BEQ END_2
-	MOV r0, #0x58
-	BL output_character
-	SUB r2, r2, #1
-	B LOOP_2
-END_2:
-	POP {r2}
-
-
-	POP {r4-r11,LR}
+	POP {r4-r11}
 
 	BX lr       	; Return
 
@@ -519,10 +357,16 @@ Timer_Handler:
 	ORR r1, r1, #0x10
 	STRB r1, [r0, #GPTMICR]
 
-	;print board
+	; Clear the screen
+	MOV r0, #0x0C
+	BL output_character
+
+	; Print board
+	LDR r0, ptr_to_board
+	BL output_string
 
 	; Get direction of '*'
-	LDR r4, ptr_to_direction
+	LDR r4, ptr_to_current_dir
 
 	; Branch to up direction
 	CMP r4, #0
@@ -540,8 +384,56 @@ Timer_Handler:
 	CMP r4, #3
 	BEQ LEFT
 
-UP:
+U:	; Move '*' up on board
+	LDR r0, ptr_to_move_up
+	BL output_string
 
+	; Change row postion value
+	LDRB r2, [r5]
+	SUB r2, r2, #1
+	STRB r2, [r5]
+
+	B DNE
+
+D:	; Move '*' down on board
+	LDR r0, ptr_to_move_down
+	BL output_string
+
+	; Change row postion value
+	LDRB r2, [r5]
+	ADD r2, r2, #1
+	STRB r2, [r5]
+
+	B DNE
+
+L:	; Move '*' left on board
+	LDR r0, ptr_to_move_left
+	BL output_string
+
+	; Change col postion value
+	LDRB r2, [r6]
+	SUB r2, r2, #1
+	STRB r2, [r6]
+
+	B DNE
+
+R:	; Move '*' right on board
+	LDR r0, ptr_to_move_right
+	BL output_string
+
+	; Change col postion value
+	LDRB r2, [r6]
+	ADD r2, r2, #1
+	STRB r2, [r6]
+
+	B DNE
+
+DNE:
+
+	; Update counter for amount of times '*'
+	LDRB r2, [r7]
+	ADD r2, r2, #1
+	STRB r2, [r7]
 
 	POP {r4-r11,LR}
 
